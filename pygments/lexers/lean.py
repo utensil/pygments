@@ -124,6 +124,9 @@ class Lean3Lexer(RegexLexer):
         ],
     }
 
+    def __init__(self, **options):
+        RegexLexer.__init__(self, **options)
+
     def analyse_text(text):
         if re.search(r'^import [a-z]', text, re.MULTILINE):
             return 0.1
@@ -149,6 +152,8 @@ class Lean4Lexer(RegexLexer):
         "(?![λΠΣ])[_a-zA-Zα-ωΑ-Ωϊ-ϻἀ-῾℀-⅏𝒜-𝖟]"
         "(?:(?![λΠΣ])[_a-zA-Zα-ωΑ-Ωϊ-ϻἀ-῾℀-⅏𝒜-𝖟0-9'ⁿ-₉ₐ-ₜᵢ-ᵪ!?])*")
     _name = _name_segment + r"(\." + _name_segment + r")*"
+    _comment_single = r'--.*\n'
+    _comment_multiline = r'/[-][-]?(?:[^-]|[-](?!/))*[-]/'
 
     keywords1 = (
         'import', 'unif_hint',
@@ -191,9 +196,11 @@ class Lean4Lexer(RegexLexer):
     tokens = {
         'expression': [
             (r'\s+', Whitespace),
-            (r'/--', String.Doc, 'docstring'),
-            (r'/-', Comment, 'comment'),
-            (r'--.*$', Comment.Single),
+            # (r'/--', String.Doc, 'docstring'),
+            (_comment_single, Comment.Single),
+            (_comment_multiline, Comment.Multiline),
+            # Open until EOF, so no ending delimiter
+            (r'/[-][\w\W]*', Comment.Multiline),
             (words(keywords3, prefix=r'\b', suffix=r'\b'), Keyword.Type),
             (words(('sorry', 'admit'), prefix=r'\b', suffix=r'\b'), Generic.Error),
             (words(operators), Name.Builtin.Pseudo),
@@ -217,24 +224,15 @@ class Lean4Lexer(RegexLexer):
             (r'\]', Keyword.Declaration, '#pop'),
             include('expression'),
         ],
-        'comment': [
-            # Multiline Comments
-            (r'[^/-]+', Comment.Multiline),
-            (r'/-', Comment.Multiline, '#push'),
-            (r'-/', Comment.Multiline, '#pop'),
-            (r'[/-]', Comment.Multiline)
-        ],
-        'docstring': [
-            (r'[^/-]+', String.Doc),
-            (r'-/', String.Doc, '#pop'),
-            (r'[/-]', String.Doc)
-        ],
         'string': [
             (r'[^\\"]+', String.Double),
             (r'\\[n"\\\n]', String.Escape),
             ('"', String.Double, '#pop'),
         ],
     }
+
+    def __init__(self, **options):
+        RegexLexer.__init__(self, **options)
 
     def analyse_text(text):
         if re.search(r'^import [A-Z]', text, re.MULTILINE):
